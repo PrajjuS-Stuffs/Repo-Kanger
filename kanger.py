@@ -1,72 +1,44 @@
 import os
-import requests
-import time
+from time import sleep
+from github import Github
 
 def getConfig(config_name):
     return os.environ[config_name]
 try:
     GH_TOKEN = getConfig("GH_TOKEN")
-    GH_USER = getConfig("GH_USER")
-    GH_ORG = getConfig("GH_ORG")
 except Exception:
     print(f"Fill all the configs plox\nExiting...")
     exit(0)
 
-def list_repos():
+g = Github(GH_TOKEN)
+
+def get_all_repos():
     REPOS = []
-    url = f"https://api.github.com/user/repos"
-    params = {
-        "per_page": "1000",
-        "type": "owner"
-    }
-    headers = {"Authorization": f"token {GH_TOKEN}"}
-    re = requests.get(url=url, params=params, headers=headers)
-    json = re.json()
-    if re.status_code != 200:
-        print(f"Requrests Errored!\nStatus Code: {re.status_code}")
-        print(json)
-        return
-    for url in json:
-        REPOS.append(url['html_url'])
+    for repo in g.get_user().get_repos(type="owner"):
+        REPOS.append(repo.full_name)
     return REPOS
 
-def get_repo_names():
-    NAMES = []
-    all_repos = list_repos()
-    for repo in all_repos:
-        NAMES.append(repo.split('/')[4])
-    return NAMES
+def create_org_repo(org: str, name: str, is_private: bool = True):
+    repo = g.get_organization(org).create_repo(name=name, private=is_private)
+    return repo.full_name
 
-def create_repo(name, private: bool):
-    url = f"https://api.github.com/orgs/{GH_ORG}/repos"
-    data = {
-        "name": name,
-        "private": private
-    }
-    headers = {"Authorization": f"token {GH_TOKEN}"}
-    re = requests.post(url=url, json=data, headers=headers)
-    json = re.json()
-    if re.status_code != 201:
-        print(f"Repository creating failed!\nStatus code: {re.status_code}")
-        print(json)
-    print(f"Repository {name} created!")
+def import_repo(to_repo: str, repo_name: str, username: str, password: str, vcs: str = "git"):
+    repo = g.get_repo(to_repo)
+    kang = repo.create_source_import(vcs=vcs, vcs_url=f"https://github.com/{repo_name}.git", vcs_username=username, vcs_password=password)
+    return kang.html_url
 
-def clone_create_push():
-    repo_names = get_repo_names()
-    for repo in repo_names:
+if __name__ == "__main__":
+    print("Starting Kang Process...\n\n")
+    for user_repo in get_all_repos():
         try:
-            os.system(f"git clone https://{GH_USER}/{repo}.git")
-            os.system(f"cd {repo}")
-            create_repo(f"{repo}", True)
-            os.system(f"git remote add new-origin https://{GH_ORG}/{repo}.git")
-            os.system("git push new-origin --mirror")
-            os.system("git push new-origin refs/remotes/origin/*:refs/heads/*")
-            os.system("git push new-origin --delete HEAD")
-            print(f"Repository {repo} kanged!")
-            os.system("cd ..")
-            os.system(f"rm -rf {repo}")
-            time.sleep(5)
-        except Exception:
-            print(f"{repo} failed!")
+            print(f"Kanging Repo: {user_repo}\n")
+            user_short_repo = user_repo.split("/")[1]
+            org_repo = create_org_repo("PrajjuS-Stuffs", user_short_repo)
+            print(f"Org Repo Created: {org_repo}\n")
+            kang_repo = import_repo(org_repo, user_repo, GH_TOKEN, GH_TOKEN)
+            print(f"Kang Successful: {kang_repo}\n")
+            sleep(5)
+            print("Sleeping for 5 secs...\n\n")
+        except Exception as e:
+            print(f"Errored: {e}")
 
-clone_create_push()

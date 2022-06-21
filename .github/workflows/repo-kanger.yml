@@ -4,11 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  GitHubMail: "theprajjus@gmail.com"
-  GitHubName: "PrajjuS"
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
-  GH_USER: ${{ secrets.GH_USER }}
-  GH_ORG: ${{ secrets.GH_ORG }}
 
 jobs:
   build:
@@ -17,13 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set Git Configs & Secrets
-        run: |
-          git config --global user.email ${GitHubMail}
-          git config --global user.name ${GitHubName}
-          git config --global color.ui true
-          git config --global credential.helper store
-          echo "https://${GH_USER}:${GH_TOKEN}@github.com" > ~/.git-credentials
+      - name: Install dependencies
+        run: pip install PyGithub
 
       - name: Run script
         run: sudo -E python3 kanger.py
